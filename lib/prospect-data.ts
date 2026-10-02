@@ -11,7 +11,13 @@ export async function getProspectsFromSupabase(projectId: string): Promise<Prosp
     .eq("project_id", projectId)
     .order("distance_meters", { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    console.error("Supabase prospects query failed:", error);
+    throw new Error(
+      [error.message, error.details, error.hint, error.code].filter(Boolean).join(" | ") ||
+        "Failed to load prospects."
+    );
+  }
 
   return (data ?? []).map((row: any) => {
     const opportunities = row.prospect_opportunities ?? [];
