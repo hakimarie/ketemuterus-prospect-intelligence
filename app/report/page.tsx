@@ -1,0 +1,14 @@
+import { ArrowLeft, Download, FileText } from "lucide-react";
+import Link from "next/link";
+import { mockProspects, mockSummary } from "@/lib/mock-data";
+import { PotentialBadge } from "@/components/potential-badge";
+
+export default function ReportPage() {
+  return <div className="min-h-screen bg-slate-50"><main className="mx-auto max-w-[1050px] px-5 py-6 sm:px-8">
+    <Link href="/" className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-brand"><ArrowLeft size={14}/> Dashboard</Link>
+    <div className="mt-6 flex items-start justify-between border-b border-slate-200 pb-6"><div><p className="text-xs font-medium text-brand">KetemuTerus Prospect Intelligence</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-ink">Six Hands — PIM 3</h1><p className="mt-2 text-sm text-slate-500">Local Audience & Partnership Intelligence · {mockSummary.radiusMeters/1000} km radius</p></div><button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600"><Download size={15}/> Export</button></div>
+    <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5"><div className="flex gap-3"><FileText className="mt-0.5 text-brand" size={19}/><div><h2 className="font-semibold text-ink">Executive summary</h2><p className="mt-1 text-sm leading-6 text-slate-600">The current research set maps {mockSummary.prospects} ecosystem prospects around PIM 3. The dataset separates customer-acquisition opportunities from brand-partnership opportunities and records supporting evidence signals.</p></div></div></div>
+    <div className="mt-6 grid gap-4 sm:grid-cols-3">{[["Prospects mapped",mockSummary.prospects],["Customer acquisition",mockSummary.customerAcquisition],["Brand partnership",mockSummary.brandPartnership]].map(([l,v])=><div key={l} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs text-slate-400">{l}</p><p className="mt-2 text-2xl font-bold">{v}</p></div>)}</div>
+    <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="border-b border-slate-100 p-5"><h2 className="font-semibold">Priority prospects</h2><p className="mt-1 text-xs text-slate-400">Illustrative prototype view</p></div><div className="divide-y divide-slate-100">{mockProspects.slice(0,5).map(p=><div key={p.id} className="flex items-center justify-between gap-4 p-5"><div><p className="text-sm font-semibold text-slate-700">{p.name}</p><p className="mt-1 text-xs text-slate-400">{p.category} · {(p.distance_meters/1000).toFixed(1)} km</p></div><div className="flex gap-2"><PotentialBadge level={p.customerPotential}/><PotentialBadge level={p.partnershipPotential}/></div></div>)}</div></div>
+  </main></div>;
+}
