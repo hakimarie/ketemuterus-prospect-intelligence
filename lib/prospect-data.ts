@@ -1,9 +1,10 @@
 import type { Prospect } from "./types";
-import { supabase } from "./supabase";
+import { createSupabaseBrowserClient } from "./supabase";
 
 export async function getProspectsFromSupabase(projectId: string): Promise<Prospect[]> {
-  if (!supabase) throw new Error("Supabase environment variables are not configured.");
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) throw new Error("Supabase environment variables are not configured.");
 
+  const supabase = createSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("prospects")
     .select("id,name,subcategory,distance_meters,status,category_id,ecosystem_categories(name),prospect_opportunities(opportunity_type,potential_level),prospect_signals(id)")
