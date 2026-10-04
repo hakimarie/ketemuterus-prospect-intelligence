@@ -39,17 +39,18 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const protectedPaths = ["/prospects", "/pipeline", "/report"];
+  const pathname = request.nextUrl.pathname;
+  const protectedPaths = ["/", "/prospects", "/pipeline", "/report"];
   const isProtected = protectedPaths.some(
     (path) =>
-      request.nextUrl.pathname === path ||
-      request.nextUrl.pathname.startsWith(`${path}/`)
+      pathname === path ||
+      (path !== "/" && pathname.startsWith(`${path}/`))
   );
 
   if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
