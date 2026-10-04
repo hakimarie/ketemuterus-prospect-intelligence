@@ -1,9 +1,10 @@
 "use client";
 
-import { BriefcaseBusiness, FileText, LayoutDashboard, LogIn, Map, Users, ChevronLeft } from "lucide-react";
+import { BriefcaseBusiness, FileText, LayoutDashboard, LogOut, Map, Users, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 const items = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -14,7 +15,17 @@ const items = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function signOut() {
+    setLoggingOut(true);
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-20 hidden border-r border-slate-200 bg-white lg:flex lg:flex-col transition-all ${collapsed ? "w-20" : "w-64"}`}>
@@ -48,11 +59,16 @@ export function Sidebar() {
       </div>
 
       <div className="border-t border-slate-100 p-3">
-        <Link href="/login" className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-brand hover:bg-blue-50">
-          <LogIn size={17} />
-          {!collapsed && "Sign in"}
-        </Link>
-        <button onClick={() => setCollapsed(!collapsed)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-400">
+        <button
+          type="button"
+          onClick={signOut}
+          disabled={loggingOut}
+          className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+        >
+          <LogOut size={17} />
+          {!collapsed && (loggingOut ? "Signing out..." : "Logout")}
+        </button>
+        <button type="button" onClick={() => setCollapsed(!collapsed)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-400">
           <ChevronLeft className={`transition-transform ${collapsed ? "rotate-180" : ""}`} size={16} />
           {!collapsed && "Collapse sidebar"}
         </button>
