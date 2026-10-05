@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -8,38 +9,30 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
     const message = params.get("error");
-
-    if (code) {
-      const next = params.get("next") || "/";
-      const safeNext =
-        next.startsWith("/") && !next.startsWith("//") ? next : "/";
-      window.location.replace(
-        `/auth/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(safeNext)}`
-      );
-      return;
-    }
-
     if (message) setError(message);
   }, []);
 
-  function signIn() {
+  async function signIn() {
     if (loading) return;
 
     setLoading(true);
     setError("");
 
-    const params = new URLSearchParams(window.location.search);
-    const requestedNext = params.get("next") || "/";
-    const next =
-      requestedNext.startsWith("/") && !requestedNext.startsWith("//")
-        ? requestedNext
-        : "/";
+    const supabase = createSupabaseBrowserClient();
 
-    window.location.assign(
-      `/auth/signin?next=${encodeURIComponent(next)}`
-    );
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo:
+          "https://ketemuterus-prospect-intelligence.vercel.app/auth/callback",
+      },
+    });
+
+    if (error) {
+      setLoading(false);
+      setError(error.message);
+    }
   }
 
   return (
