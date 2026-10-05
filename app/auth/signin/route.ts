@@ -24,24 +24,16 @@ export async function GET(request: Request) {
     );
   }
 
-  const response = NextResponse.redirect(new URL("/login", request.url));
+  const cookieStore = await cookies();
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
-        return request.headers.get("cookie")
-          ? request.headers.get("cookie")!.split("; ").map((item) => {
-              const index = item.indexOf("=");
-              return {
-                name: index >= 0 ? item.slice(0, index) : item,
-                value: index >= 0 ? item.slice(index + 1) : "",
-              };
-            })
-          : [];
+        return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
+          cookieStore.set(name, value, options);
         });
       },
     },
@@ -67,6 +59,5 @@ export async function GET(request: Request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  response.headers.set("Location", data.url);
-  return response;
+  return NextResponse.redirect(data.url);
 }
