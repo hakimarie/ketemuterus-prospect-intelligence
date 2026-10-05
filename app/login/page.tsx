@@ -1,18 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const message = searchParams.get("error");
+    const params = new URLSearchParams(window.location.search);
+    const message = params.get("error");
     if (message) setError(message);
-  }, [searchParams]);
+  }, []);
 
   async function signIn() {
     if (loading) return;
@@ -20,7 +19,8 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const requestedNext = searchParams.get("next") || "/";
+    const params = new URLSearchParams(window.location.search);
+    const requestedNext = params.get("next") || "/";
     const next =
       requestedNext.startsWith("/") && !requestedNext.startsWith("//")
         ? requestedNext
