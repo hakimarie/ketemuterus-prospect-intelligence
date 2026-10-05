@@ -19,19 +19,13 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const params = new URLSearchParams(window.location.search);
-    const requestedNext = params.get("next") || "/";
-    const next =
-      requestedNext.startsWith("/") && !requestedNext.startsWith("//")
-        ? requestedNext
-        : "/";
-
     const supabase = createSupabaseBrowserClient();
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo:
+          "https://ketemuterus-prospect-intelligence.vercel.app/auth/callback",
       },
     });
 
