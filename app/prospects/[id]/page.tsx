@@ -35,7 +35,9 @@ export default function ProspectDetail({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     let active = true;
     setLoading(true);
-    getProspectById(params.id)
+
+    params
+      .then(({ id }) => getProspectById(id))
       .then((data) => {
         if (!active) return;
         if (!data) setError("Prospect tidak ditemukan atau Anda tidak memiliki akses.");
@@ -47,7 +49,10 @@ export default function ProspectDetail({ params }: { params: Promise<{ id: strin
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => { active = false; };
+
+    return () => {
+      active = false;
+    };
   }, [params]);
 
   if (loading) return <div className="min-h-screen bg-slate-50"><main className="mx-auto max-w-[1100px] px-5 py-12 sm:px-8"><Link href="/prospects" className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-brand"><ArrowLeft size={14}/> Prospect Database</Link><div className="mt-6 rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading prospect detail...</div></main></div>;
