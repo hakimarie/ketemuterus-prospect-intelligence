@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -13,26 +12,22 @@ export default function LoginPage() {
     if (message) setError(message);
   }, []);
 
-  async function signIn() {
+  function signIn() {
     if (loading) return;
 
     setLoading(true);
     setError("");
 
-    const supabase = createSupabaseBrowserClient();
+    const params = new URLSearchParams(window.location.search);
+    const requestedNext = params.get("next") || "/";
+    const next =
+      requestedNext.startsWith("/") && !requestedNext.startsWith("//")
+        ? requestedNext
+        : "/";
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo:
-          "https://ketemuterus-prospect-intelligence.vercel.app/auth/callback",
-      },
-    });
-
-    if (error) {
-      setLoading(false);
-      setError(error.message);
-    }
+    window.location.assign(
+      `/auth/signin?next=${encodeURIComponent(next)}`
+    );
   }
 
   return (
