@@ -1,0 +1,69 @@
+import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const requestedNext = url.searchParams.get("next") || "/";
+  const next =
+    requestedNext.startsWith("/") && !requestedNext.startsWith("//")
+      ? requestedNext
+      : "/";
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return NextResponse.redirect(
+      new URL(
+        `/login?error=${encodeURIComponent("Supabase authentication is not configured.")}`,
+        request.url
+      )
+    );
+  }
+
+  const cookieStore = await cookies();
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options);
+        });
+      },
+    },
+  });
+
+  const redirectTo = new URL("/auth/callback", request.url);
+  redirectTo.searchParams.set("next", next);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: redirectTo.toString(),
+    },
+  });
+
+  if (error || !data.url) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set(
+      "error",
+      error?.message || "Unable to start Google sign-in."
+    );
+    loginUrl.searchParams.set("next", next);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const response = NextResponse.redirect(data.url);
+
+  const cookiesToSet = cookieStore.getAll();
+  cookiesToSet.forEach(({ name, value }) => {
+    response.cookies.set(name, value);
+  });
+
+  return response;
+}
