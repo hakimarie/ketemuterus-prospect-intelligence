@@ -16,13 +16,16 @@ export async function GET(request: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.redirect(
-      new URL(
-        `/login?error=${encodeURIComponent("Supabase authentication is not configured.")}`,
-        request.url
-      )
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set(
+      "error",
+      "Supabase authentication is not configured."
     );
+    loginUrl.searchParams.set("next", next);
+    return NextResponse.redirect(loginUrl);
   }
+
+  let response = NextResponse.redirect(new URL("/login", request.url));
 
   const cookieStore = await cookies();
 
@@ -34,6 +37,12 @@ export async function GET(request: Request) {
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
           cookieStore.set(name, value, options);
+        });
+
+        response = NextResponse.redirect(new URL("/login", request.url));
+
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options);
         });
       },
     },
@@ -59,5 +68,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.redirect(data.url);
+  response.headers.set("Location", data.url);
+  return response;
 }
