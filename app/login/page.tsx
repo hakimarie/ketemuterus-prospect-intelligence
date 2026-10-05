@@ -1,64 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    if (!code) return;
-
-    const oauthCode = code;
-    const next = params.get("next") || "/";
-    const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
-    let cancelled = false;
-
-    async function finishOAuth() {
-      setLoading(true);
-      setError("");
-      const supabase = createSupabaseBrowserClient();
-      try {
-        const result = await Promise.race([
-          supabase.auth.exchangeCodeForSession(oauthCode),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("OAuth session exchange timed out.")), 15000)
-          ),
-        ]);
-        if (cancelled) return;
-        if (result.error) {
-          setError(result.error.message);
-          setLoading(false);
-          return;
-        }
-      } catch (exchangeError) {
-        if (cancelled) return;
-        setError(exchangeError instanceof Error ? exchangeError.message : "OAuth session exchange failed.");
-        setLoading(false);
-        return;
-      }
-      window.history.replaceState({}, "", "/login");
-      window.location.replace(safeNext);
-    }
-
-    finishOAuth();
-    return () => { cancelled = true; };
-  }, []);
-
-  async function signIn() {
-    setLoading(true);
-    setError("");
+  function signIn() {
     const next = new URLSearchParams(window.location.search).get("next") || "/";
     const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}` },
-    });
-    if (error) { setError(error.message); setLoading(false); }
+    window.location.assign(`/auth/signin?next=${encodeURIComponent(safeNext)}`);
   }
 
   return (
