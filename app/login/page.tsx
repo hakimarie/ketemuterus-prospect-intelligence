@@ -12,7 +12,8 @@ export default function LoginPage() {
     const code = params.get("code");
     if (!code) return;
 
-    const oauthCode = code;\n    const next = params.get("next") || "/";
+    const oauthCode = code;
+    const next = params.get("next") || "/";
     const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
     let cancelled = false;
 
