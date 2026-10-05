@@ -27,7 +27,7 @@ function potentialDescription(level: string) {
   return "Limited evidence fit; keep as a lower-priority research opportunity.";
 }
 
-export default function ProspectDetail({ params }: { params: { id: string } }) {
+export default function ProspectDetail({ params }: { params: Promise<{ id: string }> }) {
   const [prospect, setProspect] = useState<Prospect | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,7 +48,7 @@ export default function ProspectDetail({ params }: { params: { id: string } }) {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [params.id]);
+  }, [params]);
 
   if (loading) return <div className="min-h-screen bg-slate-50"><main className="mx-auto max-w-[1100px] px-5 py-12 sm:px-8"><Link href="/prospects" className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-brand"><ArrowLeft size={14}/> Prospect Database</Link><div className="mt-6 rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading prospect detail...</div></main></div>;
   if (error || !prospect) return <div className="min-h-screen bg-slate-50"><main className="mx-auto max-w-[1100px] px-5 py-12 sm:px-8"><Link href="/prospects" className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-brand"><ArrowLeft size={14}/> Prospect Database</Link><div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700"><strong>Unable to load prospect.</strong><p className="mt-1">{error || "Prospect tidak ditemukan."}</p></div></main></div>;
