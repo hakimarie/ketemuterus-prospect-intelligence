@@ -21,9 +21,25 @@ export default function LoginPage() {
       setLoading(true);
       setError("");
       const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.exchangeCodeForSession(oauthCode);
-      if (cancelled) return;
-      if (error) { setError(error.message); setLoading(false); return; }
+      try {
+        const result = await Promise.race([
+          supabase.auth.exchangeCodeForSession(oauthCode),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("OAuth session exchange timed out.")), 15000)
+          ),
+        ]);
+        if (cancelled) return;
+        if (result.error) {
+          setError(result.error.message);
+          setLoading(false);
+          return;
+        }
+      } catch (exchangeError) {
+        if (cancelled) return;
+        setError(exchangeError instanceof Error ? exchangeError.message : "OAuth session exchange failed.");
+        setLoading(false);
+        return;
+      }
       window.history.replaceState({}, "", "/login");
       window.location.replace(safeNext);
     }
