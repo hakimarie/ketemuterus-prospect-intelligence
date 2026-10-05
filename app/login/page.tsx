@@ -8,7 +8,19 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
     const message = params.get("error");
+
+    if (code) {
+      const next = params.get("next") || "/";
+      const safeNext =
+        next.startsWith("/") && !next.startsWith("//") ? next : "/";
+      window.location.replace(
+        `/auth/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(safeNext)}`
+      );
+      return;
+    }
+
     if (message) setError(message);
   }, []);
 
