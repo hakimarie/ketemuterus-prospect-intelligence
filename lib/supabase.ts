@@ -8,5 +8,5 @@ export function createSupabaseBrowserClient() {
     throw new Error("Supabase environment variables are not configured.");
   }
 
-  return createBrowserClient(url, key);
+  return createBrowserClient(url, key, {\n    auth: {\n      flowType: "pkce",\n      persistSession: true,\n      autoRefreshToken: true,\n    },\n  });
 }
