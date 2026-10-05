@@ -56,7 +56,7 @@ export default function LoginPage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/login?next=${encodeURIComponent(safeNext)}` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}` },
     });
     if (error) { setError(error.message); setLoading(false); }
   }
