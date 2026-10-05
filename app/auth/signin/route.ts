@@ -25,19 +25,18 @@ export async function GET(request: Request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  let response = NextResponse.redirect(new URL("/login", request.url));
-  const cookieStore = await cookies();
+  const response = NextResponse.redirect(
+    new URL("/auth/callback", request.url),
+    302
+  );
 
+  const cookieStore = await cookies();
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-        });
-
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });
