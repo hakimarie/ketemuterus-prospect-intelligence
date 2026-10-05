@@ -1,4 +1,4 @@
-import type { Prospect } from "./types";
+import type { OpportunityType, PipelineRecord, Prospect } from "./types";
 import { createSupabaseBrowserClient } from "./supabase";
 
 const prospectSelect = "id,name,subcategory,distance_meters,status,category_id,ecosystem_categories(name),prospect_opportunities(opportunity_type,potential_level),prospect_signals(id)";
@@ -55,4 +55,46 @@ export async function getProspectById(id: string): Promise<Prospect | null> {
   }
 
   return data ? mapProspect(data) : null;
+}
+
+export async function getPipelineRecords(projectId: string): Promise<PipelineRecord[]> {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("prospect_opportunities")
+    .select("id,prospect_id,opportunity_type,pipeline_status,last_contacted_at,next_followup_at,notes,prospects!inner(project_id)")
+    .eq("prospects.project_id", projectId)
+    .eq("in_pipeline", true)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    console.error("Supabase pipeline query failed:", error);
+    throw new Error([error.message, error.details, error.hint, error.code].filter(Boolean).join(" | ") || "Failed to load pipeline.");
+  }
+
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    prospectId: row.prospect_id,
+    opportunityType: row.opportunity_type as OpportunityType,
+    status: row.pipeline_status,
+    lastContactedAt: row.last_contacted_at,
+    nextFollowupAt: row.next_followup_at,
+    notes: row.notes ?? "",
+  }));
+}
+
+export async function addOpportunityToPipeline(
+  prospectId: string,
+  opportunityType: OpportunityType,
+): Promise<void> {
+  const supabase = createSupabaseBrowserClient();
+  const { error } = await supabase
+    .from("prospect_opportunities")
+    .update({ in_pipeline: true, pipeline_status: "new" })
+    .eq("prospect_id", prospectId)
+    .eq("opportunity_type", opportunityType);
+
+  if (error) {
+    console.error("Supabase add-to-pipeline failed:", error);
+    throw new Error([error.message, error.details, error.hint, error.code].filter(Boolean).join(" | ") || "Failed to add opportunity to pipeline.");
+  }
 }
