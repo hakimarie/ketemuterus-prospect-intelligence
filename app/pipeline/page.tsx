@@ -4,7 +4,7 @@ import { ArrowLeft, CalendarDays, ChevronRight, MessageSquareText, Plus, Search 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PotentialBadge } from "@/components/potential-badge";
-import { getProspectsFromSupabase } from "@/lib/prospect-data";
+import { getPipelineRecords, getProspectsFromSupabase } from "@/lib/prospect-data";
 import type { OpportunityType, PipelineRecord, Prospect, ProspectStatus } from "@/lib/types";
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_PROSPECT_PROJECT_ID ?? "";
@@ -23,6 +23,7 @@ type PipelineViewRecord = PipelineRecord & { prospect: Prospect };
 
 export default function PipelinePage() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [pipeline, setPipeline] = useState<PipelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [type, setType] = useState<"both" | OpportunityType>("both");
@@ -37,9 +38,11 @@ export default function PipelinePage() {
       return;
     }
 
-    getProspectsFromSupabase(PROJECT_ID)
-      .then((data) => {
-        if (active) setProspects(data);
+    Promise.all([getProspectsFromSupabase(PROJECT_ID), getPipelineRecords(PROJECT_ID)])
+      .then(([prospectData, pipelineData]) => {
+        if (!active) return;
+        setProspects(prospectData);
+        setPipeline(pipelineData);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Failed to load pipeline.");
@@ -54,30 +57,24 @@ export default function PipelinePage() {
   }, []);
 
   const records = useMemo<PipelineViewRecord[]>(() => {
-    return prospects.flatMap((prospect) => {
-      const opportunityTypes: OpportunityType[] = [];
+    const byId = new Map(prospects.map((prospect) => [prospect.id, prospect]));
 
-      if (prospect.customerPotential) opportunityTypes.push("customer_acquisition");
-      if (prospect.partnershipPotential) opportunityTypes.push("brand_partnership");
-
-      return opportunityTypes.map((opportunityType) => ({
-        id: `${prospect.id}-${opportunityType}`,
-        prospectId: prospect.id,
-        opportunityType,
-        status: prospect.status,
-        nextFollowupAt: null,
-        prospect,
-      }));
-    }).filter((record) => {
-      const matchesType = type === "both" || record.opportunityType === type;
-      const q = query.trim().toLowerCase();
-      const matchesQuery =
-        !q ||
-        record.prospect.name.toLowerCase().includes(q) ||
-        record.prospect.category.toLowerCase().includes(q);
-      return matchesType && matchesQuery;
-    });
-  }, [prospects, type, query]);
+    return pipeline
+      .map((record) => {
+        const prospect = byId.get(record.prospectId);
+        return prospect ? { ...record, prospect } : null;
+      })
+      .filter((record): record is PipelineViewRecord => Boolean(record))
+      .filter((record) => {
+        const matchesType = type === "both" || record.opportunityType === type;
+        const q = query.trim().toLowerCase();
+        const matchesQuery =
+          !q ||
+          record.prospect.name.toLowerCase().includes(q) ||
+          record.prospect.category.toLowerCase().includes(q);
+        return matchesType && matchesQuery;
+      });
+  }, [prospects, pipeline, type, query]);
 
   const potentialFor = (prospect: Prospect, opportunityType: OpportunityType) =>
     opportunityType === "customer_acquisition"
@@ -143,69 +140,81 @@ export default function PipelinePage() {
 
         <div className="mt-5 flex items-center gap-2 text-xs text-slate-500">
           <span className="font-semibold text-slate-700">{records.length}</span> active pipeline records
-          <span className="text-slate-300">·</span> Each record represents one prospect + opportunity type.
+          <span className="text-slate-300">·</span> Only opportunities explicitly added to pipeline are shown.
         </div>
 
-        <div className="mt-5 overflow-x-auto pb-4">
-          <div className="grid min-w-[1180px] grid-cols-6 gap-3">
-            {stages.map((stage) => {
-              const stageRecords = records.filter((record) => record.status === stage);
-
-              return (
-                <div key={stage} className="min-h-[500px] rounded-2xl border border-slate-200 bg-white p-3 shadow-soft">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700">{labels[stage]}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-400">{stageRecords.length}</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    {stageRecords.map((record) => {
-                      const potential = potentialFor(record.prospect, record.opportunityType);
-
-                      return (
-                        <div key={record.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                          <Link href={`/prospects/${record.prospect.id}`} className="block">
-                            <p className="text-xs font-semibold text-slate-700 hover:text-brand">{record.prospect.name}</p>
-                            <p className="mt-1 text-[10px] text-slate-400">{record.prospect.category}</p>
-                          </Link>
-
-                          <div className="mt-2 flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-medium text-brand">
-                              {record.opportunityType === "customer_acquisition" ? "Customer acquisition" : "Brand partnership"}
-                            </span>
-                            <PotentialBadge level={potential} />
-                          </div>
-
-                          {record.nextFollowupAt && (
-                            <div className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-500">
-                              <CalendarDays size={12} /> {record.nextFollowupAt}
-                            </div>
-                          )}
-
-                          <button type="button" className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-brand">
-                            <MessageSquareText size={11} /> Follow up <ChevronRight size={11} />
-                          </button>
-                        </div>
-                      );
-                    })}
-
-                    {stageRecords.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-[10px] text-slate-400">
-                        No records
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {records.length === 0 && (
+          <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+            <p className="text-sm font-semibold text-slate-700">Belum ada opportunity di pipeline.</p>
+            <p className="mt-1 text-xs text-slate-500">Buka Prospect Database, pilih prospect, lalu tambahkan opportunity ke pipeline.</p>
+            <Link href="/prospects" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">
+              <Plus size={15} /> Prospect Database
+            </Link>
           </div>
-        </div>
+        )}
+
+        {records.length > 0 && (
+          <div className="mt-5 overflow-x-auto pb-4">
+            <div className="grid min-w-[1180px] grid-cols-6 gap-3">
+              {stages.map((stage) => {
+                const stageRecords = records.filter((record) => record.status === stage);
+
+                return (
+                  <div key={stage} className="min-h-[500px] rounded-2xl border border-slate-200 bg-white p-3 shadow-soft">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-700">{labels[stage]}</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-400">{stageRecords.length}</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {stageRecords.map((record) => {
+                        const potential = potentialFor(record.prospect, record.opportunityType);
+
+                        return (
+                          <div key={record.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                            <Link href={`/prospects/${record.prospect.id}`} className="block">
+                              <p className="text-xs font-semibold text-slate-700 hover:text-brand">{record.prospect.name}</p>
+                              <p className="mt-1 text-[10px] text-slate-400">{record.prospect.category}</p>
+                            </Link>
+
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-medium text-brand">
+                                {record.opportunityType === "customer_acquisition" ? "Customer acquisition" : "Brand partnership"}
+                              </span>
+                              <PotentialBadge level={potential} />
+                            </div>
+
+                            {record.nextFollowupAt && (
+                              <div className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-500">
+                                <CalendarDays size={12} /> {record.nextFollowupAt}
+                              </div>
+                            )}
+
+                            <button type="button" className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-brand">
+                              <MessageSquareText size={11} /> Follow up <ChevronRight size={11} />
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {stageRecords.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-[10px] text-slate-400">
+                          No records
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="mt-2 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-xs text-blue-700">
           <div className="flex gap-2">
             <Plus size={14} className="mt-0.5 shrink-0" />
             <p>
-              <strong>Current workflow:</strong> pipeline records are derived from the authenticated Supabase prospect dataset. Each prospect is represented under its available opportunity types.
+              <strong>Pipeline workflow:</strong> opportunities enter this board only after they are explicitly activated from Prospect Detail.
             </p>
           </div>
         </div>
