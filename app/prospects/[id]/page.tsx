@@ -61,13 +61,14 @@ export default function ProspectDetail({ params }: { params: Promise<{ id: strin
   if (error || !prospect) return <div className="min-h-screen bg-slate-50"><main className="mx-auto max-w-[1100px] px-5 py-12 sm:px-8"><Link href="/prospects" className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-brand"><ArrowLeft size={14}/> Prospect Database</Link><div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700"><strong>Unable to load prospect.</strong><p className="mt-1">{error || "Prospect tidak ditemukan."}</p></div></main></div>;
 
   const ecosystem = getEcosystem(prospect);
+  const prospectId = prospect.id;
   const activations = activationMap[prospect.name] ?? ["Local referral offer", "Community activation", "Co-marketing collaboration"];
 
   async function addToPipeline(opportunityType: OpportunityType) {
     setAdding(opportunityType);
     setError("");
     try {
-      await addOpportunityToPipeline(prospect.id, opportunityType);
+      await addOpportunityToPipeline(prospectId, opportunityType);
       setAdded((current) => current.includes(opportunityType) ? current : [...current, opportunityType]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add opportunity to pipeline.");
