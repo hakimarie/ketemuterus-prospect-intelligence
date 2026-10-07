@@ -44,6 +44,22 @@ async function mockProvider(): Promise<ProviderResult[]> {
 }
 
 async function claimRun(runId: string) {
+  const { data: currentRun, error: currentRunError } = await supabase
+    .from("discovery_runs")
+    .select("id, project_id, status")
+    .eq("id", runId)
+    .maybeSingle();
+
+  if (currentRunError) throw currentRunError;
+
+  if (!currentRun) {
+    throw new Error(`Discovery run ${runId} tidak ditemukan.`);
+  }
+
+  if (currentRun.status !== "queued") {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("discovery_runs")
     .update({
@@ -57,7 +73,8 @@ async function claimRun(runId: string) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+
+  return data; 
 }
 
 async function failRun(runId: string, message: string) {
