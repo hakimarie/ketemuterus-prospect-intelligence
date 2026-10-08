@@ -43,6 +43,52 @@ async function mockProvider(): Promise<ProviderResult[]> {
   ];
 }
 
+async function googlePlacesProvider(query: string): Promise<ProviderResult[]> {
+  const apiKey = Deno.env.get("PLACES_API_KEY");
+  if (!apiKey) throw new Error("Missing PLACES_API_KEY secret.");
+
+  const results: ProviderResult[] = [];
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < 3; page += 1) {
+    const body: Record<string, unknown> = {
+      textQuery: query,
+      languageCode: "id",
+      regionCode: "ID",
+    };
+    if (pageToken) body.pageToken = pageToken;
+
+    const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "places.id,nextPageToken",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Places API failed (${response.status}): ${errorBody.slice(0, 1000)}`);
+    }
+
+    const data = await response.json() as {
+      places?: Array<{ id?: string }>;
+      nextPageToken?: string;
+    };
+
+    for (const place of data.places ?? []) {
+      if (place.id) results.push({ source_ref: place.id, payload: { place_id: place.id } });
+    }
+
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  return results;
+}
+
 async function claimRun(runId: string) {
   const { data: currentRun, error: currentRunError } = await supabase
     .from("discovery_runs")
@@ -92,39 +138,38 @@ async function failRun(runId: string, message: string) {
 async function processRun(runId: string) {
   const { data: run, error: runError } = await supabase
     .from("discovery_runs")
-    .select("id, project_id")
+    .select("id, project_id, query, source_id")
     .eq("id", runId)
     .eq("status", "running")
     .single();
 
   if (runError) throw runError;
 
-  // Provider interface is intentionally uniform:
-  // source + source_ref + payload.
-  const providerResults = await mockProvider();
-
-  // Temporary mock source. The database source registry must contain
-  // source_type = "mock" before this worker is executed.
   const { data: source, error: sourceError } = await supabase
     .from("discovery_sources")
     .select("id, source_type")
-    .eq("source_type", "mock")
+    .eq("id", run.source_id)
     .eq("is_active", true)
-    .limit(1)
     .maybeSingle();
 
   if (sourceError) throw sourceError;
+  if (!source) throw new Error(`No active discovery source found for run ${run.id}.`);
 
-  if (!source) {
-    throw new Error(
-      'No active discovery_sources row found for source_type="mock".',
-    );
+  let providerResults: ProviderResult[];
+  if (source.source_type === "mock") {
+    providerResults = await mockProvider();
+  } else if (source.source_type === "google_places") {
+    const query = run.query?.trim();
+    if (!query) throw new Error("Google Places discovery requires discovery_runs.query.");
+    providerResults = await googlePlacesProvider(query);
+  } else {
+    throw new Error(`Discovery source type "${source.source_type}" is not implemented yet.`);
   }
 
   const rows = providerResults.map((result) => ({
     discovery_run_id: run.id,
     source_id: source.id,
-    source_type: "mock",
+    source_type: source.source_type,
     external_id: result.source_ref,
     payload: result.payload,
     match_status: "unmatched",
